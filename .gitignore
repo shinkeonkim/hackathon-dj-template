@@ -1,5 +1,7 @@
-# Created by https://www.toptal.com/developers/gitignore/api/django,python,visualstudiocode,pycharm+all,venv,dotenv
-# Edit at https://www.toptal.com/developers/gitignore?templates=django,python,visualstudiocode,pycharm+all,venv,dotenv
+### AI tools ###
+.claude/
+.mcp.json
+.ollama/
 
 ### Django ###
 *.log
@@ -10,6 +12,7 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media
+staticfiles
 
 # If your build process includes running collectstatic, then you probably don't need or want to include staticfiles/
 # in your Git repository. Update and uncomment the following line accordingly.
@@ -385,3 +388,5 @@ pip-selfcheck.json
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/django,python,visualstudiocode,pycharm+all,venv,dotenv
+
+!environments/development/scripts/*.sh
