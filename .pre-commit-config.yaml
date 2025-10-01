@@ -45,3 +45,35 @@ repos:
   hooks:
   - id: markdownlint
     args: [ "--fix", "--disable", "MD041" ]
+
+# Django-specific hooks executed through Docker
+- repo: local
+  hooks:
+  - id: django-check
+    name: Django Check
+    entry: docker-compose run --rm webapp python manage.py check --settings=config.settings.development
+    language: system
+    pass_filenames: false
+    types: [ python ]
+
+  - id: django-check-migrations
+    name: Django Check Migrations
+    entry: docker-compose run --rm webapp python manage.py makemigrations --check --dry-run --settings=config.settings.development
+    language: system
+    pass_filenames: false
+    types: [ python ]
+
+  - id: django-test
+    name: Django Tests
+    entry: docker-compose run --rm webapp python manage.py test --settings=config.settings.development
+    language: system
+    pass_filenames: false
+    types: [ python ]
+
+  - id: mypy-django
+    name: MyPy Type Check
+    entry: docker-compose run --rm webapp mypy --config-file=pyproject.toml .
+    language: system
+    pass_filenames: false
+    types: [ python ]
+    exclude: ^(migrations/|settings/)
