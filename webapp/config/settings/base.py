@@ -10,27 +10,37 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
 
+import environ
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+env = environ.Env()
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+SECRET_KEY = env("SECRET_KEY")
+SECRET_SIGNING_KEY = env("SECRET_SIGNING_KEY", default=SECRET_KEY)
+DEBUG = env.bool("DEBUG", default=False)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-8tp76@4wnyw+6%!^qpwdl1c7q_06t%gn__n&ft96nqb56vw@k4"
+SERVICE_NAME = "TEMPLATE_SERVICE"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 
 # Application definition
 
-INSTALLED_APPS = [
+ADMIN_APPS = [
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
+    "unfold.contrib.inlines",
+    "unfold.contrib.import_export",
+    "admin_object_actions",
+]
+
+DJANGO_APPS = [
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -39,7 +49,52 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 ]
 
+PACKAGE_APPS = [
+    # Django Postgres
+    "django.contrib.postgres",
+    "psqlextra",
+    # Django Extensions
+    "django_extensions",
+    # NPlusOne
+    "nplusone.ext.django",
+    # REST Framework
+    "rest_framework",
+    "rest_framework.authtoken",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    # Swagger Docs
+    "drf_spectacular",
+    # Django Filters
+    "django_filters",
+    # Logging
+    "django_guid",
+    # Django ADMIN Import Export
+    "import_export",
+    # Auth
+    "allauth",
+    "allauth.account",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.kakao",
+    # Celery
+    "django_celery_beat",
+    "django_celery_results",
+]
+
+CUSTOM_APPS = [
+    "api",
+    "users",
+]
+
+INSTALLED_APPS = ADMIN_APPS + DJANGO_APPS + PACKAGE_APPS + CUSTOM_APPS
+
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+    "django_guid.middleware.guid_middleware",
+    "crum.CurrentRequestUserMiddleware",
+    "nplusone.ext.django.NPlusOneMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -47,6 +102,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "common.middlewares.CamelCaseMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -54,7 +110,9 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            BASE_DIR / "templates",
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -67,6 +125,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
 
 
 # Database
@@ -74,10 +133,22 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "psqlextra.backend",
+        "NAME": env("POSTGRES_DB"),
+        "USER": env("POSTGRES_USER"),
+        "PASSWORD": env("POSTGRES_PASSWORD"),
+        "HOST": env("POSTGRES_HOST"),
+        "PORT": env("POSTGRES_PORT"),
+        "TEST": {
+            "NAME": env("TEST_POSTGRES_DB", default=""),
+            "USER": env("TEST_POSTGRES_USER", default=""),
+            "PASSWORD": env("TEST_POSTGRES_PASSWORD", default=""),
+            "HOST": env("TEST_POSTGRES_HOST", default=""),
+            "PORT": env("TEST_POSTGRES_PORT", default=""),
+        },
     },
 }
+
 
 
 # Password validation
@@ -102,9 +173,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "ko-kr"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Seoul"
 
 USE_I18N = True
 
@@ -115,8 +186,133 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Media files
+
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+SITE_ID = 1
+
+AUTH_USER_MODEL = "users.User"
+
+# ========== Django Admin Customization ==========
+
+UNFOLD = {
+    "SITE_TITLE": f"{SERVICE_NAME} Admin",
+    "SITE_HEADER": f"{SERVICE_NAME} Admin",
+    "SITE_BRANDING": f"{SERVICE_NAME} Admin",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "SHOW_BACK_BUTTON": False,
+}
+
+# ========== END Django Admin Customization ==========
+
+# ========== Celery settings ==========
+
+REDIS_HOST = env("REDIS_HOST", default="redis")
+REDIS_PORT = env("REDIS_PORT", default="6379")
+CELERY_BROKER_URL = env(
+    "CELERY_BROKER_URL", default=f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
+)
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="django-db")
+CELERY_RESULT_EXTENDED = True
+CELERY_CACHE_BACKEND = "django-cache"
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+# Celery Beat 설정
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# ========== END Celery settings ==========
+
+# ========== Spectacular settings ==========
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": f"{SERVICE_NAME} API",
+    "DESCRIPTION": f"API for {SERVICE_NAME} Web / Mobile Application",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_OAUTH2_REDIRECT_URL": "/docs/oauth2-redirect/",
+    "CONTACT": {
+        "name": "shinkeonkim",
+        "email": "dev.shinkeonkim@gmail.com",
+    },
+    "CAMELIZE_NAMES": True,
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.contrib.djangorestframework_camel_case.camelize_serializer_fields",
+        "drf_spectacular.hooks.postprocess_schema_enums",
+    ],
+}
+# ========== END Spectacular settings ==========
+
+# ========== REST Framework settings ==========
+
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_RENDERER_CLASSES": (
+        "djangorestframework_camel_case.render.CamelCaseJSONRenderer",
+        "djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer",
+        "rest_framework.renderers.JSONRenderer",
+    ),
+    "DEFAULT_PARSER_CLASSES": (
+        "djangorestframework_camel_case.parser.CamelCaseFormParser",
+        "djangorestframework_camel_case.parser.CamelCaseMultiPartParser",
+        "djangorestframework_camel_case.parser.CamelCaseJSONParser",
+    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
+        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+    ),
+    "EXCEPTION_HANDLER": "common.exceptions.exception_handler.custom_exception_handler",
+    "JSON_UNDERSCOREIZE": {
+        "no_underscore_before_number": True,
+    },
+    "DEFAULT_FILTER_BACKENDS": (
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.OrderingFilter",
+        "rest_framework.filters.SearchFilter",
+    ),
+    "DEFAULT_PAGINATION_CLASS": "common.pagination.StandardPagination",
+    "PAGE_SIZE": 10,
+}
+
+# ========== END REST Framework settings ==========
+
+# ========== Simple JWT / REST AUTH settings ==========
+
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_HTTPONLY": False,
+    "JWT_SERIALIZER": "api.v1.users.serializers.JWTSerializer",
+}
+
+REST_USE_JWT = True
+
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_EMAIL_VERIFICATION = "none"  # 이메일 인증 없이 로그인할 수 있다.
+ACCOUNT_USER_MODEL_USERNAME_FIELD = "username"
+
+SOCIALACCOUNT_PROVIDERS = {}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": False,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_SIGNING_KEY,
+}
+
+# ========== END Simple JWT / REST AUTH settings ==========
